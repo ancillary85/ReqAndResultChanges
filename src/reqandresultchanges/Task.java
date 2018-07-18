@@ -18,7 +18,7 @@ import javafx.collections.ObservableList;
 
 /**
  *
- * @author Mike
+ * @author MLaptop
  */
 public class Task {
     
