@@ -47,16 +47,6 @@ public class Requirement {
         this.text = T;
     }
     
-    public Requirement(String GN, int IN, GameEnums.Type GE, GameEnums.RelOp OP, int V, Requirement singleREQ, String T) {
-        this.groupName = GN;
-        this.idNum = IN;
-        this.gameElement = GE;
-        this.operator = OP;
-        this.value = V;
-        this.additionalReqs = new Requirement[] {singleREQ};
-        this.text = T;
-    }
-    
     @Override
     public String toString() {
         return text;

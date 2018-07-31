@@ -123,10 +123,10 @@ public class ReqAndResultChanges {
             }
         }
         
-        System.out.println("Does Alice2 have a height Trait? " + alice2.hasTrait("height"));
+        System.out.println("Does Alice2 have a Height Trait? " + alice2.hasTraitName("Height"));
         Result noHeight = new Result("dudes", 0, GameEnums.Type.TRAIT, 0, GameEnums.Outcome.REMOVE_TRAIT_SELF);
         processResult(noHeight, alice2);
-        System.out.println("Does Alice2 have a height Trait? " + alice2.hasTrait("height"));
+        System.out.println("Does Alice2 have a Height Trait? " + alice2.hasTraitName("Height"));
     }
     
     /**
@@ -309,26 +309,16 @@ public class ReqAndResultChanges {
             case UNCREATE:
                 break;
             case ADD_TRAIT_SELF:
-                    //Tasks or Traits may be added
                     if(givenResult.getGameElement() == GameEnums.Type.TRAIT) {
                         Trait traitToAdd = defaultData.getTraitByNum(givenResult.getGroupName(), givenResult.getIdNum());
                         traitToAdd.setValue(givenResult.getValue());
                         source.addTrait(traitToAdd);
                     }
-                    else if(givenResult.getGameElement() == GameEnums.Type.TASK) {
-                        Task taskToAdd = defaultData.getTaskByNum(givenResult.getGroupName(), givenResult.getIdNum());
-                        source.addTask(taskToAdd);
-                    }
                 break;
             case REMOVE_TRAIT_SELF:
-                    //Tasks or Traits may be added
                     if(givenResult.getGameElement() == GameEnums.Type.TRAIT) {
                         Trait traitToRemove = defaultData.getTraitByNum(givenResult.getGroupName(), givenResult.getIdNum());
                         source.removeTrait(traitToRemove);
-                    }
-                    else if(givenResult.getGameElement() == GameEnums.Type.TASK) {
-                        Task taskToRemove = defaultData.getTaskByNum(givenResult.getGroupName(), givenResult.getIdNum());
-                        source.removeTask(taskToRemove);
                     }
                 break;
             case ADD_TRAIT_LINKED:
@@ -350,8 +340,16 @@ public class ReqAndResultChanges {
                     }
                 break;
             case ADD_TASK_SELF:
+                    if(givenResult.getGameElement() == GameEnums.Type.TASK) {
+                        Task taskToAdd = defaultData.getTaskByNum(givenResult.getGroupName(), givenResult.getIdNum());
+                        source.addTask(taskToAdd);
+                    }
                 break;
             case REMOVE_TASK_SELF:
+                    if(givenResult.getGameElement() == GameEnums.Type.TASK) {
+                        Task taskToRemove = defaultData.getTaskByNum(givenResult.getGroupName(), givenResult.getIdNum());
+                        source.removeTask(taskToRemove);
+                    }
                 break;
             case ADD_TASK_LINKED:
                 break;

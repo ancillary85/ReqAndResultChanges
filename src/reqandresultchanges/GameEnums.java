@@ -27,6 +27,10 @@ public class GameEnums {
         AUTOTASK, UNCANCELABLE
     }
     
+    public static enum TraitMod {
+        FLAVOR, COMBAT, PRODUCTION,  ATTRIBUTE, GENERAL
+    }
+    
     public static enum Outcome {
         SELF_CHANGE, LINKED_CHANGE, CREATE, UNCREATE, 
         ADD_TRAIT_SELF, REMOVE_TRAIT_SELF, ADD_TRAIT_LINKED, REMOVE_TRAIT_LINKED,

@@ -37,6 +37,12 @@ public class Entity {
     protected SimpleStringProperty name;
     
     /**
+     * The Entity's badge number, to distinguish it from others with the same groupName and idNum
+     * The Engine should keep track of assigning unique badge numbers as it makes new Entitys
+     */
+    protected int badge = 0;
+    
+    /**
      * Whether the Entity is busy
      */
     protected SimpleBooleanProperty busy;
@@ -51,24 +57,27 @@ public class Entity {
      */
     protected ArrayList<Trait> traits;
     protected ArrayList<Task> tasks;
+    protected ArrayList<Flag> flags;
     protected SimpleIntegerProperty taskTimer;
     protected Task currentTask;
     protected SimpleBooleanProperty taskCompleted;
     protected SimpleStringProperty idleText;
-    protected Trait.trait_type[] traitDisplayPriority = {Trait.trait_type.ATTRIBUTE, Trait.trait_type.PRODUCTION, Trait.trait_type.COMBAT, Trait.trait_type.FLAVOR};
+    protected GameEnums.TraitMod[] traitDisplayPriority = {GameEnums.TraitMod.ATTRIBUTE, GameEnums.TraitMod.PRODUCTION, 
+        GameEnums.TraitMod.COMBAT, GameEnums.TraitMod.FLAVOR};
     
     public Entity() {
-        this.groupName = null;
-        this.idNum = -1;
-        this.name = new SimpleStringProperty("blank");
-        this.busy = new SimpleBooleanProperty(false);
-        this.location = new SimpleStringProperty("nowhere");
-        this.tasks = new ArrayList<Task>();
-        this.taskTimer = new SimpleIntegerProperty(-1);
-        this.currentTask = new Task();
-        this.taskCompleted = new SimpleBooleanProperty(false);
-        this.idleText = new SimpleStringProperty("doing nothing");
-        this.traits = new ArrayList<Trait>();
+        groupName = null;
+        idNum = -1;
+        name = new SimpleStringProperty("blank");
+        busy = new SimpleBooleanProperty(false);
+        location = new SimpleStringProperty("nowhere");
+        tasks = new ArrayList<Task>();
+        taskTimer = new SimpleIntegerProperty(-1);
+        currentTask = new Task();
+        taskCompleted = new SimpleBooleanProperty(false);
+        idleText = new SimpleStringProperty("doing nothing");
+        traits = new ArrayList<Trait>();
+        flags = new ArrayList<Flag>();
     }
     
     
@@ -82,46 +91,49 @@ public class Entity {
      * @param traits 
      */
     public Entity(String group, int id, String name, String location, List<Task> newTasks, String idleText, List<Trait> traits) {
-        this.groupName = group;
-        this.idNum = id;
+        groupName = group;
+        idNum = id;
         this.name = new SimpleStringProperty(name);
         this.busy = new SimpleBooleanProperty(false);
         this.location = new SimpleStringProperty(location);        
-        this.setUpTasks(newTasks);
-        this.taskTimer = new SimpleIntegerProperty(-1);
-        this.currentTask = new Task();
-        this.taskCompleted = new SimpleBooleanProperty(false);
+        setTasks(newTasks);
+        taskTimer = new SimpleIntegerProperty(-1);
+        currentTask = new Task();
+        taskCompleted = new SimpleBooleanProperty(false);
         this.idleText = new SimpleStringProperty(idleText);
-        this.setUpTraits(traits);
+        setTraits(traits);
+        flags = new ArrayList<Flag>();
     }
     
     public Entity(Entity e) {
         
         if(e == null)   {
-            this.groupName = null;
-            this.idNum = -1;
-            this.name = new SimpleStringProperty("blank");
-            this.busy = new SimpleBooleanProperty(false);
-            this.location = new SimpleStringProperty("nowhere");
-            this.tasks = new ArrayList<Task>();
-            this.taskTimer = new SimpleIntegerProperty(-1);
-            this.currentTask = new Task();
-            this.taskCompleted = new SimpleBooleanProperty(false);
-            this.idleText = new SimpleStringProperty("doing nothing");
-            this.traits = new ArrayList<Trait>();
+            groupName = null;
+            idNum = -1;
+            name = new SimpleStringProperty("blank");
+            busy = new SimpleBooleanProperty(false);
+            location = new SimpleStringProperty("nowhere");
+            tasks = new ArrayList<Task>();
+            taskTimer = new SimpleIntegerProperty(-1);
+            currentTask = new Task();
+            taskCompleted = new SimpleBooleanProperty(false);
+            idleText = new SimpleStringProperty("doing nothing");
+            traits = new ArrayList<Trait>();
+            flags = new ArrayList<Flag>();
         }
         else            {
-            this.groupName = e.getGroupName();
-            this.idNum = e.getIdNum();
-            this.name = new SimpleStringProperty(e.getName());
-            this.busy = new SimpleBooleanProperty(false);
-            this.location = new SimpleStringProperty(e.getLocation());
-            this.setUpTasks(e.getTasks());
-            this.taskTimer = new SimpleIntegerProperty(-1);
-            this.currentTask = new Task();
-            this.taskCompleted = new SimpleBooleanProperty(false);
-            this.idleText = new SimpleStringProperty(e.getIdleText());
-            this.setUpTraits(e.getTraits());
+            groupName = e.getGroupName();
+            idNum = e.getIdNum();
+            name = new SimpleStringProperty(e.getName());
+            busy = new SimpleBooleanProperty(false);
+            location = new SimpleStringProperty(e.getLocation());
+            setTasks(e.getTasks());
+            taskTimer = new SimpleIntegerProperty(-1);
+            currentTask = new Task();
+            taskCompleted = new SimpleBooleanProperty(false);
+            idleText = new SimpleStringProperty(e.getIdleText());
+            setTraits(e.getTraits());
+            setFlags(e.getFlags());
         }
        
     }
@@ -134,12 +146,20 @@ public class Entity {
         return tasks;
     }
     
-    public void setTasks(List<Task> newTasks) {
-        if(newTasks == null) {
-            tasks = new ArrayList<Task>();
+    /**
+     * Return a List of the Entity's flags
+     * @return 
+     */
+    public List<Flag> getFlags() {
+        return flags;
+    }
+    
+    public void setFlags(List<Flag> newFlags) {
+        if(newFlags == null) {
+            flags = new ArrayList<Flag>();
         }
         else {
-            tasks = new ArrayList<Task>(newTasks);
+            flags = new ArrayList<Flag>(newFlags);
         }
     }
     
@@ -147,7 +167,7 @@ public class Entity {
      * Makes a deep copy of the list of Tasks for this to use
      * @param newTasks 
      */
-    private void setUpTasks(List<Task> newTasks) {
+    public void setTasks(List<Task> newTasks) {
         tasks = new ArrayList<Task>();
         
         if(newTasks != null) {
@@ -161,7 +181,7 @@ public class Entity {
      * Makes a deep copy of the list of Traits for this to use
      * @param newTraits 
      */
-    private void setUpTraits(List<Trait> newTraits) {
+    public void setTraits(List<Trait> newTraits) {
         traits = new ArrayList<Trait>();
         
         if(newTraits != null) {
@@ -302,15 +322,19 @@ public class Entity {
     }
 
     public void matchEntity(Entity toMatch) {
-        this.setGroupName(toMatch.getGroupName());
-        this.setId(toMatch.getIdNum());
-        this.setName(toMatch.getName());
-        this.busy.set(toMatch.isBusy());
-        this.currentTask.setToNewTask(toMatch.getCurrentTask());
-        this.taskCompleted.set(toMatch.getTaskCompleted());
-        this.taskTimer.set(toMatch.getTaskTimer());
-        this.setTasks(toMatch.getTasks());
-        this.setTraits(toMatch.getTraits());
+        setGroupName(toMatch.getGroupName());
+        setId(toMatch.getIdNum());
+        setName(toMatch.getName());
+        idleText.set(toMatch.getIdleText());
+        busy.set(toMatch.isBusy());
+        location.set(toMatch.getLocation());
+        currentTask.setToNewTask(toMatch.getCurrentTask());
+        taskCompleted.set(toMatch.getTaskCompleted());
+        taskTimer.set(toMatch.getTaskTimer());
+        setTasks(toMatch.getTasks());
+        setTraits(toMatch.getTraits());
+        setFlags(toMatch.getFlags());
+        traitDisplayPriority = toMatch.getTraitDisplayPriority();
     }
     
     /**
@@ -457,6 +481,14 @@ public class Entity {
         this.groupName = group;
     }
     
+    public int getBadge() {
+        return badge;
+    }
+    
+    public void setBadge(int newBadge) {
+        badge = newBadge;
+    }
+    
     /**
      * @return the Entity's "busy" SimpleBooleanProperty
      */
@@ -514,58 +546,149 @@ public class Entity {
     public List<Trait> getTraits() {
         return traits;
     }
-    
-    /**
-     * @param newTraits the traits to set
-     */
-    public void setTraits(List<Trait> newTraits) {
-        this.traits = new ArrayList<Trait>(newTraits);
-    }
 
     /**
      * @return the traitDisplayPriority
      */
-    public Trait.trait_type[] getTraitDisplayPriority() {
+    public GameEnums.TraitMod[] getTraitDisplayPriority() {
         return traitDisplayPriority;
     }
 
     /**
      * @param traitDisplayPriority the traitDisplayPriority to set
      */
-    public void setTraitDisplayPriority(Trait.trait_type[] traitDisplayPriority) {
+    public void setTraitDisplayPriority(GameEnums.TraitMod[] traitDisplayPriority) {
         this.traitDisplayPriority = traitDisplayPriority;
     }
     
     /**
-     * Adds the given trait to the entity. If the Trait List already contains a Trait with the same name, 
+     * If the Trait List already contains the Trait, 
      * it adds their values. If it does not have one, it does nothing. 
      * Negative values are allowed.
      * 
-     * @param name the name of the Trait
-     * @param value the value of the Trait
+     * @param t
      */
-    public void addTraitValue(String name, int value) {
+    public void addTraitValue(Trait t) {
+        if(t == null) {
+            return;
+        }
         
-        for(Trait res : traits) {
-            if(res.getName().equals(name)) {
-                res.addToValue(value);
-                return; //return if we found the trait in the trait list
+        for(Trait current : traits) {
+            if(current.equalShallow(t)) {
+                current.addToValue(t.getValue());
+                return;
             }
         }
     }
     
-    public boolean hasTrait(String name) {
-        for(Trait t : traits) {
-            if(t.getName().equalsIgnoreCase(name)) {
+    /**
+     * If the Trait List already contains the Trait, 
+     * it subtracts the value of the given Trait. If it does not have one, it does nothing. 
+     * Negative values are allowed.
+     * 
+     * @param t
+     */
+    public void subtractTraitValue(Trait t) {
+        if(t == null) {
+            return;
+        }
+        
+        for(Trait current : traits) {
+            if(current.equalShallow(t)) {
+                current.addToValue(t.getValue() * -1);
+                return;
+            }
+        }
+    }
+    
+    /**
+     * If the Trait list already contains the Trait that the given Cost refers to, 
+     * it subtracts the Cost's value from that Trait. Otherwise, nothing happens.
+     * @param c 
+     */
+    public void subtractCostValue(Cost c) {
+        if(c == null) {
+            return;
+        }
+        
+        for(Trait current : traits) {
+            if(current.getGroupName().equals(c.getGroupName()) && current.getIdNum() == c.getIdNum()) {
+                current.addToValue(c.getValue() * -1);
+            }
+        }
+    }
+    
+    /**
+     * If the Trait list already contains the Trait that the given Cost refers to, 
+     * it adds the Cost's value to that Trait. Otherwise, nothing happens.
+     * @param c 
+     */
+    public void addCostValue(Cost c) {
+        if(c == null) {
+            return;
+        }
+        
+        for(Trait current : traits) {
+            if(current.getGroupName().equals(c.getGroupName()) && current.getIdNum() == c.getIdNum()) {
+                current.addToValue(c.getValue());
+            }
+        }
+    }
+    
+    /**
+     * Compares Trait t to its list of Traits using Trait.equalShallow
+     * @param t
+     * @return 
+     */
+    public boolean hasTrait(Trait t) {
+        if(t == null) {
+            return false;
+        }
+        
+        for(Trait current : traits) {
+            if(current.equalShallow(t)) {
                 return true;
             }
         }
         return false;
     }
     
+    public boolean hasTraitName(String traitName) {
+        if(traitName == null) {
+            return false;
+        }
+        
+        for(Trait current : traits) {
+            if(current.getName().equals(traitName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Returns a Trait from its Trait list that matches the given one by Trait.equalShallow.
+     * Returns null if nothing matches
+     * @param t
+     * @return 
+     */
+    public Trait getTrait(Trait t) {
+        if(t == null) {
+            return null;
+        }
+        
+        for(Trait current : traits) {
+            if(current.equalShallow(t)) {
+                return current;
+            }
+        }
+        
+        return null;
+    }
+    
     public int getTraitValue(String name) {
         for(Trait t : traits) {
-            if(t.getName().equalsIgnoreCase(name)) {
+            if(t.getName().equals(name)) {
                 return t.getValue();
             }
         }
@@ -573,18 +696,18 @@ public class Entity {
     }
     
     /**
-     * Adds the given trait to the entity. If the Trait List already contains a Trait with the 
-     * same name, it adds their values. If it does not have one, it adds the Trait to the pool.
+     * Adds the given trait to the entity. If the Trait List already contains the Trait,
+     * it adds their values. If it does not have one, it adds the Trait to the pool.
      * Negative values are allowed.
      * 
      * @param t the Trait
      */
     public void addTrait(Trait t) {
        
-        for(Trait res : traits) {
-            if(res.getName().equals(t.getName())) {
-                res.addToValue(t.getValue());
-                return; //return if we found the trait
+        for(Trait current : traits) {
+            if(current.equalShallow(t)) {
+                current.addToValue(t.getValue());
+                return;
             }
         }
         
@@ -612,6 +735,44 @@ public class Entity {
     }
 
     /**
+     * Compares Flag f to its list of Flags using Flag.equalShallow
+     * @param f
+     * @return 
+     */
+    public boolean hasFlag(Flag f) {
+        if(f == null) {
+            return false;
+        }
+        
+        for(Flag current : flags) {
+            if(current.equalShallow(f)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns a Flag from its Flag list that matches the given one by Flag.equalShallow.
+     * Returns null if nothing matches
+     * @param f
+     * @return 
+     */
+    public Flag getFlag(Flag f) {
+        if(f == null) {
+            return null;
+        }
+        
+        for(Flag current : flags) {
+            if(current.equalShallow(f)) {
+                return current;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
      * @return the entity's idle text if it is not busy, and returns it's current task's flavor if it is busy
      */
     public String status() {
@@ -621,5 +782,17 @@ public class Entity {
         else {
             return idleText.get();
         }
+    }
+    
+    
+    public boolean equalShallow(Entity e) {
+        if(e == null)                                           {return false;}
+        if(this == e)                                           {return true;}
+        
+        if(this.getGroupName() == null && e.getGroupName() == null) {
+            return this.getIdNum() == e.getIdNum();
+        }
+        
+        return this.getGroupName().equals(e.getGroupName()) && (this.getIdNum() == e.getIdNum());
     }
 }

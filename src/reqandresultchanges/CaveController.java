@@ -22,4 +22,5 @@ interface CaveController {
     Engine getEngine();
     void exitFired(ActionEvent e);
     void updateFired(ActionEvent e);
+    void acknowledgeEngineUpdate();
 }

@@ -19,20 +19,16 @@ import javafx.beans.property.SimpleStringProperty;
  */
 public class Trait {
 
-    public static enum trait_type{FLAVOR, COMBAT, PRODUCTION,  ATTRIBUTE, GENERAL,                                                    
-    /*permanents*/                       CREATION, ROOM, PERSONAL_RESOURCE, OTHERS_RESOURCE, RESOURCE,
-    /*events*/                              EVENT, CONDITIONAL, TIMED, 
-    /*modifiers*/                           HIDDEN_RESOURCE, EACHTURN, UNCANCELABLE,
-    /*requirement conditions*/       EQUALTO, LESSTHAN, GREATERTHAN, NOTEQUAL, EXISTS, NOTEXISTS,
-    /*requirements only*/              CREATION_LINK, ROOM_LINK,
-    /*results only*/                       AUTOTASK, ACTIVE_CHANGE, ROOM_CHANGE, UNCREATE, ACTIVE_CHANGE_OTHER,
-                                                ADD_TRAIT, REMOVE_TRAIT, ADD_TASK, REMOVE_TASK,
-    /*unused?*/                           REQUIREMENT, MULTI, RESULT,
-                                                }    
-    
-    /*
-    requirement condition
-    */
+//    public static enum trait_type{FLAVOR, COMBAT, PRODUCTION,  ATTRIBUTE, GENERAL,                                                    
+//    /*permanents*/                       CREATION, ROOM, PERSONAL_RESOURCE, OTHERS_RESOURCE, RESOURCE,
+//    /*events*/                              EVENT, CONDITIONAL, TIMED, 
+//    /*modifiers*/                           HIDDEN_RESOURCE, EACHTURN, UNCANCELABLE,
+//    /*requirement conditions*/       EQUALTO, LESSTHAN, GREATERTHAN, NOTEQUAL, EXISTS, NOTEXISTS,
+//    /*requirements only*/              CREATION_LINK, ROOM_LINK,
+//    /*results only*/                       AUTOTASK, ACTIVE_CHANGE, ROOM_CHANGE, UNCREATE, ACTIVE_CHANGE_OTHER,
+//                                                ADD_TRAIT, REMOVE_TRAIT, ADD_TASK, REMOVE_TASK,
+//    /*unused?*/                           REQUIREMENT, MULTI, RESULT,
+//                                                }    
     
     private String groupName;
     private int idNum;
@@ -41,7 +37,7 @@ public class Trait {
     private SimpleIntegerProperty valueMin = new SimpleIntegerProperty(Integer.MIN_VALUE);
     private SimpleIntegerProperty valueMax = new SimpleIntegerProperty(Integer.MAX_VALUE);
     private SimpleStringProperty description;
-    private EnumSet<trait_type> types;
+    private EnumSet<GameEnums.TraitMod> types;
     private int sortingPriority = -1;
     private SimpleBooleanProperty showValue = new SimpleBooleanProperty(true);
     
@@ -49,12 +45,12 @@ public class Trait {
         this.name = new SimpleStringProperty("No name");
         this.value = new SimpleIntegerProperty(0);
         this.description = new SimpleStringProperty("");        
-        this.types = EnumSet.noneOf(Trait.trait_type.class);
+        this.types = EnumSet.noneOf(GameEnums.TraitMod.class);
         this.groupName = null;
         this.idNum = -1;
     }
     
-    public Trait(String name, int value, EnumSet<trait_type> initTypes) {
+    public Trait(String name, int value, EnumSet<GameEnums.TraitMod> initTypes) {
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleIntegerProperty(value);    
         this.description = new SimpleStringProperty("");
@@ -63,7 +59,7 @@ public class Trait {
         this.idNum = -1;
     }
     
-    public Trait(String name, int value, String description, EnumSet<trait_type> initTypes) {
+    public Trait(String name, int value, String description, EnumSet<GameEnums.TraitMod> initTypes) {
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleIntegerProperty(value);    
         this.description = new SimpleStringProperty(description);
@@ -72,7 +68,7 @@ public class Trait {
         this.idNum = -1;
     }
 
-    public Trait(String name, int value, String description, EnumSet<trait_type> initTypes, String group, int id) {
+    public Trait(String name, int value, String description, EnumSet<GameEnums.TraitMod> initTypes, String group, int id) {
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleIntegerProperty(value);    
         this.description = new SimpleStringProperty(description);
@@ -295,26 +291,26 @@ public class Trait {
     /**
      * @return the types as an EnumSet
      */
-    public EnumSet<trait_type> getTypes() {
+    public EnumSet<GameEnums.TraitMod> getTypes() {
         return types;
     }
     
     /**
      * @param multiTypes the type to set
      */
-    public void setTypes(EnumSet<trait_type> multiTypes) {
+    public void setTypes(EnumSet<GameEnums.TraitMod> multiTypes) {
         this.types = multiTypes;
     }
     
-    private boolean validateTypeArray(trait_type[] multiTypes) {
-        if(multiTypes == null) {return false;} //is the array null?
-        //are any of the array elements null?
-        for(trait_type temp : multiTypes) {
-            if(temp == null) {return false;}
-        }
-        
-        return true;
-    }
+//    private boolean validateTypeArray(trait_type[] multiTypes) {
+//        if(multiTypes == null) {return false;} //is the array null?
+//        //are any of the array elements null?
+//        for(trait_type temp : multiTypes) {
+//            if(temp == null) {return false;}
+//        }
+//        
+//        return true;
+//    }
     
     @Override
     public String toString() {
@@ -323,13 +319,36 @@ public class Trait {
     
     public String toStringVerbose() {
         String stringTypes = "";
-        for(Trait.trait_type t : types) {
+        for(GameEnums.TraitMod t : types) {
             stringTypes += t.name() + " ";
         }
         
         return name.get() + ": " + value.get() + "\n" + stringTypes + "\n" + description.get();
     }
     
+    /**
+     * Tests for equality based on name, groupName, and id only
+     * @param t
+     * @return 
+     */
+    public boolean equalShallow(Trait t) {
+        if(t == null)                                            {return false;} //is the other null?
+        if(this == t)                                            {return true;} //is the other me?
+        if(!this.getName().equals(t.getName()))     {return false;} //do they have the same name? 
+        
+        //do they have the same group name and id?
+        if(this.getGroupName() == null && t.getGroupName() == null) {
+            return this.getIdNum() == t.getIdNum();
+        }
+        
+        return this.getGroupName().equals(t.getGroupName()) && (this.getIdNum() == t.getIdNum());
+    }
+    
+    /**
+     * Tests for equality based on name, groupName, id, value, types, and description
+     * @param t
+     * @return 
+     */
     @Override
     public boolean equals(Object t) {
         if(t == null) {return false;} //is the other null?
@@ -337,10 +356,12 @@ public class Trait {
         if(!(t instanceof Trait)) {return false;} //is it a Trait?
         
         Trait temp = (Trait) t;
-        if(!this.getName().equals(temp.getName())) {return false;} //same name?
-        if(this.getValue() != temp.getValue()) {return false;} //same value?
-        if(!this.getTypes().equals(temp.getTypes())) {return false;} //same types?
-        return this.getDesc().equals(temp.getDesc()); //same description?;
+        if(!this.getGroupName().equals(temp.getGroupName()))      {return false;} //same group?
+        if(this.getIdNum() != temp.getIdNum())                              {return false;} //same id within group?
+        if(!this.getName().equals(temp.getName()))                       {return false;} //same name?
+        if(this.getValue() != temp.getValue())                                {return false;} //same value?
+        if(!this.getTypes().equals(temp.getTypes()))                      {return false;} //same types?
+        return this.getDesc().equals(temp.getDesc());                                       //same description?;
     }
 
     @Override

@@ -34,6 +34,14 @@ public class Flag {
         groupName = initGroup;
         idNum = initNum;
     }
+
+    public Flag(Flag f) {
+        name = new SimpleStringProperty(f.getFlagName());
+        state = new SimpleBooleanProperty(f.getFlagState());
+        text = new SimpleStringProperty(f.getFlagText());
+        groupName = f.getFlagGroupName();
+        idNum = f.getFlagIdNum();
+    }
     
     public String getFlagName() {
         return name.get();
@@ -77,5 +85,18 @@ public class Flag {
     
     public int getFlagIdNum() {
         return idNum;
+    }
+    
+    public boolean equalShallow(Flag f) {
+        if(f == null)                                                         {return false;} //is the other null?
+        if(this == f)                                                         {return true;} //is the other me?
+        if(!this.getFlagName().equals(f.getFlagName()))     {return false;} //do they have the same name? 
+        
+        //do they have the same group name and id?
+        if(this.getFlagGroupName() == null && f.getFlagGroupName() == null) {
+            return this.getFlagIdNum() == f.getFlagIdNum();
+        }
+        
+        return this.getFlagGroupName().equals(f.getFlagGroupName()) && (this.getFlagIdNum() == f.getFlagIdNum());
     }
 }

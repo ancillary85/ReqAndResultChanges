@@ -6,34 +6,50 @@
 package reqandresultchanges;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleListProperty;
+import javafx.beans.property.SimpleSetProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.fxml.Initializable;
+import javafx.util.Pair;
 
 /**
  *
  * @author Mike
  */
 public class Engine {
-
+    
+    protected LinkedHashSet<Entity> entities;
+    protected ArrayList<Room> rooms;
+    protected HashMap<Entity, HashSet<Entity>> entityLinks;
+    protected HashMap<Pair<String, Integer>, Integer> badgeCounts;
     protected SimpleListProperty<Trait> global_resources;
-    protected CaveController controller;
+    protected SimpleListProperty<Flag> global_flags;
     protected SimpleListProperty<GameEvent> pendingEvents = new SimpleListProperty();
     protected SimpleListProperty<GameEvent> updateWarnings = new SimpleListProperty();
     protected ArrayList<GameEvent> unresolvedUpdateWarnings = new ArrayList();
     protected PredefinedData defaultData = new PredefinedData();
     protected SimpleIntegerProperty turnCount = new SimpleIntegerProperty(0);
     
+    protected ArrayList<Entity> entitiesToRemove = new ArrayList();
+    protected ArrayList<Entity> entitiesToChange = new ArrayList();
+    
     public Engine() {
-        this.global_resources = new SimpleListProperty<>(FXCollections.observableArrayList());
+        setUpEntities(null);
+        setUpRooms(null);
+        setUpLinks();
         
+        //////////////////////Fix this mess
+        
+        this.global_resources = new SimpleListProperty<>(FXCollections.observableArrayList());
+        this.global_flags = new SimpleListProperty<>(FXCollections.observableArrayList());
         //SimpleListProperty will be an empty wrapper if we don't initialize it with something
         ObservableList<GameEvent> pendingEventList = FXCollections.observableArrayList(new ArrayList<GameEvent>());
         this.pendingEvents = new SimpleListProperty<GameEvent>(pendingEventList);
@@ -47,6 +63,81 @@ public class Engine {
      */
     public SimpleListProperty<Trait> getGlobalResources() {
         return global_resources;
+    }
+    
+    /**
+     * @return the global flags
+     */
+    public SimpleListProperty<Flag> getGlobalFlags() {
+        return global_flags;
+    }
+    
+    /**
+     * Returns the Flag from global Flags that matches the given Flag by equalShallow.
+     * Returns null otherwise.
+     * @param f
+     * @return 
+     */
+    public Flag getGlobalFlag(Flag f) {
+        if(f == null) {
+            return null;
+        }
+        
+        for(Flag current : global_flags) {
+            if(current.equalShallow(f)) {
+                return current;
+            }
+        }
+        
+        return null;
+    }
+    
+    public boolean hasGlobalResourceName(String name) {
+        if(name == null) {
+            return false;
+        }
+        
+        for(Trait t : global_resources) {
+            if(t.getName().equals(name)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    public boolean hasGlobalResource(Trait t) {
+        if(t == null) {
+            return false;
+        }
+        
+        for(Trait current : global_resources) {
+            if(current.equalShallow(t)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Returns the Trait from global resources that matches the given Trait by equalShallow.
+     * Returns null otherwise.
+     * @param t
+     * @return 
+     */
+    public Trait getGlobalResource(Trait t) {
+        if(t == null) {
+            return null;
+        }
+        
+        for(Trait current : global_resources) {
+            if(current.equalShallow(t)) {
+                return current;
+            }
+        }
+        
+        return null;
     }
     
     /**
@@ -67,19 +158,66 @@ public class Engine {
             }
         }
         
-        EnumSet<Trait.trait_type> traitTypes = EnumSet.of(Trait.trait_type.RESOURCE);
+        EnumSet<GameEnums.TraitMod> traitTypes = EnumSet.noneOf(GameEnums.TraitMod.class);
         global_resources.get().add(new Trait(name, value, desc, traitTypes));
     }
     
     /**
-     * Adds the given resource to the global pool. If the global resource pool already contains a resource Trait with the 
-     * same name, it adds their values. If it does not have one, it adds the Trait to the pool.
+     * Adds the given resource to the global pool. If the global resource pool already contains the Trait
+     * it adds their values. If it does not have one, it adds the Trait to the pool.
      * Negative values are allowed.
      * 
-     * @param t the resource
+     * @param t the resource Trait
      */
     public void addResource(Trait t) {
-        addResource(t.getName(), t.getValue(), t.getDesc());
+        for(Trait current : getGlobalResources()) {
+            if(current.equalShallow(t)) {
+                current.addToValue(t.getValue());
+                return;
+            }
+        }
+        
+        getGlobalResources().get().add(t);
+    }
+    
+    /**
+     * Looks up a Trait by the given group name and id, then adds it to the global pool.
+     * If the global resource pool already contains the Trait, it adds their values. Otherwise, it is added to the pool.
+     * If there is no Trait with the given information, nothing happens.
+     * @param group
+     * @param id
+     * @param value 
+     */
+    public void addResourceById(String group, int id, int value) {
+        Trait temp = getPredefinedData().getTraitByNum(group, id);
+        if(temp == null) {
+            return;
+        }
+        temp.setValue(value);
+        
+        addResource(temp);
+    }
+    
+    /**
+     * Looks up a Trait by the given group name and id, and then adds it to the Entity.
+     * If the Entity already has the Trait, their values are added. If the Entity does not have the Trait, it is 
+     * given that Trait with the given value. If there is no Trait with the given information, nothing happens
+     * @param group
+     * @param id
+     * @param value
+     */
+    public void addToEntityById(Entity target, String group, int id, int value) {
+        if(target == null) {
+            return;
+        }
+        
+        Trait temp = getPredefinedData().getTraitByNum(group, id);
+        if(temp == null) {
+            return;
+        }
+        temp.setValue(value);
+        
+        target.addTrait(temp);
     }
     
     /**
@@ -106,20 +244,6 @@ public class Engine {
         }
         
         return String.join("\n", result);
-    }
-
-    /**
-     * @return the controller
-     */
-    public CaveController getController() {
-        return controller;
-    }
-
-    /**
-     * @param controller the controller to set
-     */
-    public void setController(CaveController controller) {
-        this.controller = controller;
     }
     
     public int getTurnCount() {
@@ -246,12 +370,12 @@ public class Engine {
                 justCreated.setTaskAndTimer(autoTask);
             }
             
-            controller.addEntity(justCreated);
+            //controller.addEntity(justCreated);
         }
         
         // Remove any removed things
         for(String id : IDsToRemove) {
-            controller.removeByID(id);
+            //controller.removeByID(id);
         }
         
         // Change others
@@ -318,15 +442,20 @@ public class Engine {
                 System.out.println("Engine thinks " + justCreated.getName() + " has auto task " + autoTask.getName());
                 justCreated.setTaskAndTimer(autoTask);
             }
-            controller.addEntity(justCreated);
+            //controller.addEntity(justCreated);
         }
         
         // Remove any removed things
         for(String id : IDsToRemove) {
-            controller.removeByID(id);
+            //controller.removeByID(id);
         }
         
         incrementTurnCount();
+    }
+    
+    public void updateAcknowledged() {
+        entitiesToRemove.clear();
+        entitiesToChange.clear();
     }
     
     public boolean isEventReady(GameEvent e) {
@@ -467,12 +596,12 @@ public class Engine {
     public void cancelTaskRefundCosts(Entity e) {
         Task t = e.getCurrentTask();
         
-        for(Trait cost : t.getCosts()) {
-            if(TraitEvaluator.isPResourceTrait(cost)) {
-                e.addTraitValue(cost.getName(), cost.getValue() * -1);
+        for(Cost price : t.getCosts()) {
+            if(price.getGameElement() == GameEnums.Type.TRAIT) {
+                e.addCostValue(price);
             }
             else {
-                this.addResource(cost.getName(), cost.getValue() * -1, cost.getDesc());
+                addResourceById(price.getGroupName(), price.getIdNum(), price.getValue());
             }
         }
         
@@ -485,27 +614,28 @@ public class Engine {
     
     
     /**
-     * Calls e.setTaskAndTimer(t), then evaluates the costs of t. Resource costs are added to the global
-     * resource pool, and personal resources to Active e.
+     * Calls e.setTaskAndTimer(t), then evaluates the costs of t. Resource costs are subtracted from the global
+     * resource pool, and personal resources from Active e.
      * @param t the chosen Task
-     * @param e the Active to do the Task
+     * @param e the Entity to do the Task
      */
     public void setTaskPayCosts(Task t, Entity e) {
         e.setTaskAndTimer(t);
         
-        for(Trait cost : t.getCosts()) {
-            if(TraitEvaluator.isPResourceTrait(cost)) {
-                e.addTrait(cost);
+        for(Cost price : t.getCosts()) {
+            if(price.getGameElement() == GameEnums.Type.TRAIT) {
+                e.subtractCostValue(price);
             }
             else {
-                this.addResource(cost);
+                addResourceById(price.getGroupName(), price.getIdNum(), price.getValue() * -1);
             }
         }
     }
     
+    
     public int getResourceValue(String name) {
         for(Trait resource : global_resources) {
-            if(resource.getName().equalsIgnoreCase(name)) {
+            if(resource.getName().equals(name)) {
                 return resource.getValue();
             }
         }
@@ -517,7 +647,7 @@ public class Engine {
         
         for(Entity entity : getEntities()) {
             
-            if(entity.getGroupName().equalsIgnoreCase(group) && entity.getIdNum() == id) {
+            if(entity.getGroupName().equals(group) && entity.getIdNum() == id) {
                 count++;
             }
             
@@ -626,14 +756,14 @@ public class Engine {
         return true;
     }
     
-    public boolean requirementsAllMet(Task t, Entity e) {
+    public boolean requirementsAllMet(List<Requirement> reqs, Entity e) {
     //if there are no requirements, then true
-        if(t.getRequirements().isEmpty()) {
+        if(reqs == null || reqs.isEmpty()) {
             return true;
         }
             
-        for(Requirement req : t.getRequirements()) {
-            if(!requirementMet(req, e)){
+        for(Requirement r : reqs) {
+            if(!requirementMet(r, e)){
                 return false;
             }
         }
@@ -644,28 +774,211 @@ public class Engine {
     public boolean equalToReqMet(Requirement req, Entity e) {
         switch(req.getGameElement()) {
             case ENTITY:
-            case TRAIT:  
+                if(req.getAdditionalReq() == null) {
+                    return getEntityCount(req.getGroupName(), req.getIdNum()) == req.getValue();
+                }
+                else {
+                    int count = 0;
+                    Entity tempEntity = getPredefinedData().getEntityByNum(req.getGroupName(), req.getIdNum());
+                    for(Entity possible : getEntities()) {
+                        if(possible.equalShallow(tempEntity) && requirementsAllMet(Arrays.asList(req.getAdditionalReq()), possible)) {
+                            count++;
+                        }
+                    }
+                    
+                    return count == req.getValue();
+                }
+            case TRAIT:
+                Trait tempTrait = e.getTrait(getPredefinedData().getTraitByNum(req.getGroupName(), req.getIdNum()));
+                if(tempTrait != null) {
+                    return tempTrait.getValue() == req.getValue();
+                }
+                else {
+                    return false;
+                }
             case GLOBAL_TRAIT:  
-            case FLAG:
+                Trait globalTempTrait = getGlobalResource(getPredefinedData().getTraitByNum(req.getGroupName(), req.getIdNum()));
+                if(globalTempTrait != null) {
+                    return globalTempTrait.getValue() == req.getValue();
+                }
+                else {
+                    return false;
+                }
+            case FLAG: //Flags have boolean values, so we check differently: req.getValue() must return a nonzero number to be considered false
+                Flag tempFlag = e.getFlag(getPredefinedData().getFlagByNum(req.getGroupName(), req.getIdNum()));
+                if(tempFlag != null) {
+                    return tempFlag.getFlagState() == (req.getValue() == 0);
+                }
+                else {
+                    return false;
+                }
             case GLOBAL_FLAG:
+                Flag globalTempFlag = getGlobalFlag(getPredefinedData().getFlagByNum(req.getGroupName(), req.getIdNum()));
+                if(globalTempFlag != null) {
+                    return globalTempFlag.getFlagState() == (req.getValue() == 0);
+                }
+                else {
+                    return false;
+                }
             default: return false;
         }
     }
     
     public boolean notEqualReqMet(Requirement req, Entity e) {
         switch(req.getGameElement()) {
+            case ENTITY:
+                if(req.getAdditionalReq() == null) {
+                    return getEntityCount(req.getGroupName(), req.getIdNum()) != req.getValue();
+                }
+                else {
+                    int count = 0;
+                    Entity tempEntity = getPredefinedData().getEntityByNum(req.getGroupName(), req.getIdNum());
+                    for(Entity possible : getEntities()) {
+                        if(possible.equalShallow(tempEntity) && requirementsAllMet(Arrays.asList(req.getAdditionalReq()), possible)) {
+                            count++;
+                        }
+                    }
+                    
+                    return count != req.getValue();
+                }
+            case TRAIT:
+                Trait tempTrait = e.getTrait(getPredefinedData().getTraitByNum(req.getGroupName(), req.getIdNum()));
+                if(tempTrait != null) {
+                    return tempTrait.getValue() != req.getValue();
+                }
+                else {
+                    return false;
+                }
+            case GLOBAL_TRAIT:  
+                Trait globalTempTrait = getGlobalResource(getPredefinedData().getTraitByNum(req.getGroupName(), req.getIdNum()));
+                if(globalTempTrait != null) {
+                    return globalTempTrait.getValue() != req.getValue();
+                }
+                else {
+                    return false;
+                }
+            case FLAG: //Flags have boolean values, so we check differently: req.getValue() must return a nonzero number to be considered false
+                Flag tempFlag = e.getFlag(getPredefinedData().getFlagByNum(req.getGroupName(), req.getIdNum()));
+                if(tempFlag != null) {
+                    return tempFlag.getFlagState() != (req.getValue() == 0);
+                }
+                else {
+                    return false;
+                }
+            case GLOBAL_FLAG:
+                Flag globalTempFlag = getGlobalFlag(getPredefinedData().getFlagByNum(req.getGroupName(), req.getIdNum()));
+                if(globalTempFlag != null) {
+                    return globalTempFlag.getFlagState() != (req.getValue() == 0);
+                }
+                else {
+                    return false;
+                }
             default: return false;
         }
     }
     
     public boolean lessThanReqMet(Requirement req, Entity e) {
         switch(req.getGameElement()) {
+            case ENTITY:
+                if(req.getAdditionalReq() == null) {
+                    return getEntityCount(req.getGroupName(), req.getIdNum()) < req.getValue();
+                }
+                else {
+                    int count = 0;
+                    Entity tempEntity = getPredefinedData().getEntityByNum(req.getGroupName(), req.getIdNum());
+                    for(Entity possible : getEntities()) {
+                        if(possible.equalShallow(tempEntity) && requirementsAllMet(Arrays.asList(req.getAdditionalReq()), possible)) {
+                            count++;
+                        }
+                    }
+                    
+                    return count < req.getValue();
+                }
+            case TRAIT:
+                Trait tempTrait = e.getTrait(getPredefinedData().getTraitByNum(req.getGroupName(), req.getIdNum()));
+                if(tempTrait != null) {
+                    return tempTrait.getValue() == req.getValue();
+                }
+                else {
+                    return false;
+                }
+            case GLOBAL_TRAIT:  
+                Trait globalTempTrait = getGlobalResource(getPredefinedData().getTraitByNum(req.getGroupName(), req.getIdNum()));
+                if(globalTempTrait != null) {
+                    return globalTempTrait.getValue() < req.getValue();
+                }
+                else {
+                    return false;
+                }
+            case FLAG: //Flags have boolean values, so we check differently: req.getValue() must return a nonzero number to be considered false
+                Flag tempFlag = e.getFlag(getPredefinedData().getFlagByNum(req.getGroupName(), req.getIdNum()));
+                if(tempFlag != null) {
+                    return tempFlag.getFlagState() == (req.getValue() == 0);
+                }
+                else {
+                    return false;
+                }
+            case GLOBAL_FLAG:
+                Flag globalTempFlag = getGlobalFlag(getPredefinedData().getFlagByNum(req.getGroupName(), req.getIdNum()));
+                if(globalTempFlag != null) {
+                    return globalTempFlag.getFlagState() == (req.getValue() == 0);
+                }
+                else {
+                    return false;
+                }
             default: return false;
         }
     }
     
     public boolean greaterThanReqMet(Requirement req, Entity e) {
         switch(req.getGameElement()) {
+            case ENTITY:
+                if(req.getAdditionalReq() == null) {
+                    return getEntityCount(req.getGroupName(), req.getIdNum()) > req.getValue();
+                }
+                else {
+                    int count = 0;
+                    Entity tempEntity = getPredefinedData().getEntityByNum(req.getGroupName(), req.getIdNum());
+                    for(Entity possible : getEntities()) {
+                        if(possible.equalShallow(tempEntity) && requirementsAllMet(Arrays.asList(req.getAdditionalReq()), possible)) {
+                            count++;
+                        }
+                    }
+                    
+                    return count > req.getValue();
+                }
+            case TRAIT:
+                Trait tempTrait = e.getTrait(getPredefinedData().getTraitByNum(req.getGroupName(), req.getIdNum()));
+                if(tempTrait != null) {
+                    return tempTrait.getValue() > req.getValue();
+                }
+                else {
+                    return false;
+                }
+            case GLOBAL_TRAIT:  
+                Trait globalTempTrait = getGlobalResource(getPredefinedData().getTraitByNum(req.getGroupName(), req.getIdNum()));
+                if(globalTempTrait != null) {
+                    return globalTempTrait.getValue() > req.getValue();
+                }
+                else {
+                    return false;
+                }
+            case FLAG: //Flags have boolean values, so we check differently: req.getValue() must return a nonzero number to be considered false
+                Flag tempFlag = e.getFlag(getPredefinedData().getFlagByNum(req.getGroupName(), req.getIdNum()));
+                if(tempFlag != null) {
+                    return tempFlag.getFlagState() == (req.getValue() == 0);
+                }
+                else {
+                    return false;
+                }
+            case GLOBAL_FLAG:
+                Flag globalTempFlag = getGlobalFlag(getPredefinedData().getFlagByNum(req.getGroupName(), req.getIdNum()));
+                if(globalTempFlag != null) {
+                    return globalTempFlag.getFlagState() == (req.getValue() == 0);
+                }
+                else {
+                    return false;
+                }
             default: return false;
         }
     }
@@ -673,84 +986,252 @@ public class Engine {
     public PredefinedData getPredefinedData() {
         return defaultData;
     }
-    
+       
     public void addRoom(Room r) {
-        return;
+        rooms.add(r);
+        
+        // If it doens't have a valid position, don't worry about it
+        if(r.getxPos() < 0 || r.getyPos() < 0) {
+            return;
+        }
     }
-    
+
     public List<Room> getRooms() {
-        return null;
-    }
-    
-    public List<Room> getReachableRooms() {
-        return null;
-    }
-    
-    public void setReachable(int pos, boolean reachable) {
-        return;
-    }
-    
-    public void setRooms(List<Room> newRooms) {
-        return;
+        return rooms;
     }
     
     public void setRoom(Room r, int pos) {
-        return;
+        if(pos < 0 || pos >= rooms.size()) {
+            return;
+        }
+        
+        if(rooms.get(pos) == null) {
+            rooms.set(pos, r);
+        }
+        else {
+            rooms.get(pos).matchRoom(r);
+        }
     }
     
     public void setRoomEmpty(Room r) {
-        return;
+        r.setName("Empty");
+        r.setId("empty");
+        r.setType(Room.roomType.WALL);
+        r.setDescription("Unworked");
+        r.setTraits(new ArrayList<Trait>());
+        r.setTasks(new ArrayList<Task>());
     }
     
-    public void removeRoom(Room r) {
-        return;
+    public List<Room> getReachableRooms() {
+        ArrayList<Room> reachableRooms = new ArrayList();
+        
+        for(Room r : rooms) {
+            if(r.isReachable()) {
+                reachableRooms.add(r);
+            }
+        }
+        
+        return reachableRooms;
+    }
+
+    public void setReachable(int pos, boolean reachable) {
+        rooms.get(pos).setReachable(reachable);
     }
     
     public void changeRoom(Room r, Task t) {
-        return;
+        try {
+            Class c = AntRoomBuilder.class;
+            Method m = null;
+            
+            for(Trait result : t.getResults()) {
+                if(TraitEvaluator.isRoomChangeTrait(result)) {
+                    m = c.getMethod(result.getDesc());
+                    break;
+                }
+            }
+            
+            if(m == null) {
+                return;
+            }
+            
+            r.matchRoomShallow((Room)m.invoke(c, new Object[0]));
+            r.setReachable(false);
+        } catch (Throwable ex) {
+            System.out.println(ex);
+        }
     }
     
     public void changeEntity(Entity e, Task t) {
-        return;
+        String s = null;
+        for(Result result : t.getResults()) {
+            if(TraitEvaluator.isActiveChangeTrait(result)) {
+                s = result.getDesc();
+                break;
+            }
+        }
+
+        if(s == null) {
+            return;
+        }
+
+        ActiveEntity toMatch = builder.makeEntity(s, null);
+
+        e.matchEntity(toMatch);
+        Task autoTask = super.getAutoTask(e);
+        
+        if(autoTask != null) {
+            e.setTaskAndTimer(autoTask);
+        }
+        
     }
     
+    public void removeRoom(Room r) {
+        rooms.remove(r);
+    }
+
+    public void setRooms(List<Room> newRooms) {
+        rooms = new ArrayList<Room>(newRooms);
+    }    
+
+    private void setUpRooms(List<Room> initRooms) {
+        rooms = new ArrayList<Room>();
+        
+        if(initRooms != null) {
+            for(Room r : initRooms) {
+                if(r == null) {
+                    rooms.add(new Room());
+                }
+                else {
+                    rooms.add(new Room(r));
+                }
+            }
+        }
+    }
+    
+    private void setUpEntities(List<Entity> initEntities) {
+        entities = new LinkedHashSet();
+        
+        if(initEntities != null) {
+            for(Entity e : initEntities) {
+                addEntity(e);
+            }
+        }
+    }
+    
+    private void setUpLinks() {
+        entityLinks = new HashMap();
+    }
+    
+    /**
+     * Adds the given Entity e if it is not null, and e does not already exist 
+     * @param e The Entity to add
+     */
     public void addEntity(Entity e) {
-        return;
+        if(e != null && !entities.contains(e)) {
+            entities.add(e);
+        }
     }
-    
-    public List<Entity> getEntities() {
-        return null;
+
+    public Set<Entity> getActiveEntities() {
+        return entities;
     }
-    
+
     public void setEntities(List<Entity> newEntities) {
-        return;
+        entities = null;
+        setUpEntities(newEntities);
     }
-    
+
     public void removeEntity(Entity e) {
-        return;
+        entities.remove(e);
     }
-    
+
     public void linkEntities(Entity e1, Entity e2) {
-        return;
+        HashSet<Entity> links1 = entityLinks.get(e1);
+        HashSet<Entity> links2 = entityLinks.get(e2);
+        if(links1 == null) {
+            links1 = new HashSet();
+        }
+        
+        if(links2 == null) {
+            links2 = new HashSet();
+        }
+        
+        links1.add(e2);
+        entityLinks.put(e1, links1);
+        links2.add(e1);
+        entityLinks.put(e2, links2);
     }
-    
+
     public boolean areLinked(Entity e1, Entity e2) {
-        return false;
+        if(entityLinks.get(e1) == null) {
+            return false;
+        }
+        
+        if(entityLinks.get(e2) == null) {
+            return false;
+        }
+        
+        return entityLinks.get(e1).contains(e2) && entityLinks.get(e2).contains(e1);
     }
-    
-    public void unlinkActives(Entity e1, Entity e2) {
-        return;
+
+    public void unlinkEntities(Entity e1, Entity e2) {
+        HashSet<Entity> links1 = entityLinks.get(e1);
+        HashSet<Entity> links2 = entityLinks.get(e2);
+        if(links1 != null) {
+            links1.remove(e2);
+        }
+        
+        if(links2 != null) {
+            links2.remove(e1);
+        }
+        
     }
     
     public HashSet<Entity> unlinkAllEntities(Entity e1) {
-        return null;
+        HashSet<Entity> removed = new HashSet();
+        
+        if(entityLinks.get(e1) == null) {
+            return removed;
+        }
+        
+        for(Entity linked : getLinkedEntities(e1)) {
+            removed.add(linked);
+            HashSet<Entity> links = entityLinks.get(linked);
+            if(links != null) {
+                links.remove(e1);
+            }
+        }
+        
+        entityLinks.get(e1).clear();
+        return removed;
     }
-    
-    public HashSet<Entity> getLinkedEntity(Entity e) {
-        return null;
+
+    public HashSet<Entity> getLinkedEntities(Entity e) {
+        if(entityLinks.get(e) == null) {
+            HashSet<Entity> links = new HashSet();
+            entityLinks.put(e, links);
+        }
+        
+        return entityLinks.get(e);
     }
     
     public boolean isLinked(Entity e) {
-        return false;
+        if(entityLinks.get(e) == null) {
+            return false;
+        }
+        
+        return !entityLinks.get(e).isEmpty();
+    }
+    
+    public LinkedHashSet<Entity> getEntities() {
+        return entities;
+    }
+    
+    public List getToRemove() {
+        return entitiesToRemove;
+    }
+    
+    public List getToChange() {
+        return entitiesToChange;
     }
 }

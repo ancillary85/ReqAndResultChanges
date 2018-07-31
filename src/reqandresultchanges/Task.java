@@ -21,7 +21,7 @@ import javafx.collections.ObservableList;
  * @author MLaptop
  */
 public class Task {
-    
+
     private SimpleStringProperty name;
     private SimpleIntegerProperty duration;
     private SimpleStringProperty gerund;
@@ -349,7 +349,7 @@ public class Task {
 
     }
             
-    public void setCostsList(List<Trait> newCosts) {
+    public void setCostsList(List<Cost> newCosts) {
         costs.set(FXCollections.observableList(newCosts));
     }
     
